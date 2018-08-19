@@ -1,4 +1,5 @@
 const Discord = require('discord.js');
+const fs = require('fs');
 
 const client = new Discord.Client();
 
@@ -31,7 +32,7 @@ client.on('guildMemberAdd', (member) => {
     const emojiBeaugoss = member.guild.emojis.find('name', 'beaugoss');
 
     const usersToAsk = member.guild.members
-        .filter(m => m.some(r => r.name === 'recrutement'))
+        .filter(m => m.roles.some(r => r.name === 'recrutement'))
         .map(m => m.user)
         //.filter(u => u.username.indexOf('Akamelia') === 0 || u.username.indexOf('general_shark') !== -1)
 
@@ -176,7 +177,8 @@ client.on('messageReactionAdd', (msgReact, user) => {
 
                     if(message)
                     {
-                        message.edit(message.content.substring(0, message.content.indexOf('\r\n')).trim() + `\r\nChoix validé par ${user} : ${verified ? ':thumbsup:' : ':beaugoss:'}`);
+                        const content = message.content;
+                        message.edit(content.substring(0, content.indexOf('\r\n')).trim() + `\r\nChoix validé par ${user} : ${verified ? ':thumbsup:' : ':beaugoss:'}`);
                     }
                 }
 
@@ -192,4 +194,4 @@ client.on('ready', () => {
     console.log('READY');
 });
 
-client.login(process.env.TOKEN);
+client.login(process.env.TOKEN || fs.readFile('./token').toString().trim());
