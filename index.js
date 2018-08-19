@@ -31,15 +31,18 @@ client.on('guildMemberAdd', (member) => {
     const emojiBeaugoss = member.guild.emojis.find('name', 'beaugoss');
 
     const usersToAsk = member.guild.members
-        //.filter(m => m.some(r => r.name === 'Modérateur Orokin'))
+        .filter(m => m.some(r => r.name === 'recrutement'))
         .map(m => m.user)
-        .filter(u => u.username.indexOf('Akamelia') === 0 || u.username.indexOf('general_shark') !== -1);
+        //.filter(u => u.username.indexOf('Akamelia') === 0 || u.username.indexOf('general_shark') !== -1)
 
     const adjective = adjectives[Math.trunc(Math.random() * adjectives.length)];
     const msg = `Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}**\r\nQuels sont vos ordres ?\r\n(autoriser = :thumbsup: | refuser = :beaugoss:)`;
     const sendToChannel = (channel) => {
         channel.send(msg).then(m => {
-            pending.notifyMessages.push(m.id);
+            pending.notifyMessages.push({
+                id: m.id,
+                channelId: channel.id
+            });
             notifPendings[m.id] = pending;
             
             m.react('👍');
@@ -53,9 +56,8 @@ client.on('guildMemberAdd', (member) => {
     }
 
     const channel = member.guild.channels.filter(c => c.name === 'vérification-tenno').first();
-    /*
     if(channel)
-        channel.send(msg).then(sendToChannel);*/
+        channel.send(msg).then(sendToChannel);
     
     pendings[pending.id] = pending;
 });
@@ -166,9 +168,22 @@ client.on('messageReactionAdd', (msgReact, user) => {
             delete pendings[notifPending.id];
 
             for(const notifyMessage of notifPending.notifyMessages)
-                delete notifPendings[notifyMessage];
+            {
+                const channel = client.channels.find('id', notifyMessage.channelId);
+                if(channel)
+                {
+                    const message = channel.fetchMessage(notifyMessage.id);
+
+                    if(message)
+                    {
+                        message.edit(message.content.substring(0, message.content.indexOf('\r\n')).trim() + `\r\nChoix validé par ${user} : ${verified ? ':thumbsup:' : ':beaugoss:'}`);
+                    }
+                }
+
+                delete notifPendings[notifyMessage.id];
+            }
             
-            msgReact.message.edit(msgReact.message.content.substring(0, msgReact.message.content.indexOf('\r\n')).trim() + `\r\nChoix validé : ${verified ? ':thumbsup:' : ':thumbsdown:'}`);
+            //msgReact.message.edit(msgReact.message.content.substring(0, msgReact.message.content.indexOf('\r\n')).trim() + `\r\nChoix validé : ${verified ? ':thumbsup:' : ':thumbsdown:'}`);
         }
     }
 })
