@@ -14,6 +14,9 @@ const adjectives = [
 let pendings = {};
 let notifPendings = {};
 
+let emojiUp;
+let emojiDown;
+
 client.on('guildMemberAdd', (member) => {
     const user = member.user;
 
@@ -27,9 +30,8 @@ client.on('guildMemberAdd', (member) => {
     };
     pending.id = pending.guildId + '_' + pending.userId;
 
-    const emojiUp = '👍'//member.guild.emojis.find('name', '👍');
-    const emojiDown = member.guild.emojis.find('name', '👎');
-    const emojiBeaugoss = member.guild.emojis.find('name', 'beaugoss');
+    emojiUp = '👍'//member.guild.emojis.find('name', '👍');
+    emojiDown = member.guild.emojis.find('name', 'beaugoss');
 
     const usersToAsk = member.guild.members
         .filter(m => m.roles.some(r => r.name === 'recrutement'))
@@ -37,18 +39,20 @@ client.on('guildMemberAdd', (member) => {
         //.filter(u => u.username.indexOf('Akamelia') === 0 || u.username.indexOf('general_shark') !== -1)
 
     const adjective = adjectives[Math.trunc(Math.random() * adjectives.length)];
-    const msg = `Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}**\r\nQuels sont vos ordres ?\r\n(autoriser = :thumbsup: | refuser = :beaugoss:)`;
-    const sendToChannel = (channel) => {
-        channel.send(msg).then(m => {
-            pending.notifyMessages.push({
-                id: m.id,
-                channelId: channel.id
-            });
-            notifPendings[m.id] = pending;
-            
-            m.react('👍');
-            m.react(emojiBeaugoss);
+    const msg = `Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}**\r\nQuels sont vos ordres ?\r\n(Choisir une des deux réactions)`;
+    
+    const sendToMessage = (channel, m) => {
+        pending.notifyMessages.push({
+            id: m.id,
+            channelId: channel.id
         });
+        notifPendings[m.id] = pending;
+        
+        m.react('👍');
+        m.react(emojiDown);
+    }
+    const sendToChannel = (channel) => {
+        channel.send(msg).then(m => sendToMessage(channel, m)).catch(e => console.error(e, channel));
     }
 
     for(const userToAsk of usersToAsk)
@@ -56,9 +60,9 @@ client.on('guildMemberAdd', (member) => {
         userToAsk.createDM().then(sendToChannel);
     }
 
-    const channel = member.guild.channels.filter(c => c.name === 'vérification-tenno').first();
+    const channel = member.guild.channels.find('name', 'vérification-tenno');
     if(channel)
-        channel.send(msg).then(sendToChannel);
+        channel.send(msg).then(m => sendToMessage(channel, m));
     
     pendings[pending.id] = pending;
 });
@@ -129,8 +133,6 @@ client.on('messageReactionAdd', (msgReact, user) => {
                     
                     const role = guild.roles.find('name', 'verified');
                     member.addRole(role);
-                    msgReact.message.react('🐰');
-                    msgReact.message.react('♥');
                 })
                 
                 break;
@@ -158,7 +160,6 @@ client.on('messageReactionAdd', (msgReact, user) => {
                             member.kick();
                         })
                     })
-                    msgReact.message.react('😢');
                 })
                 break;
             }
@@ -171,15 +172,47 @@ client.on('messageReactionAdd', (msgReact, user) => {
             for(const notifyMessage of notifPending.notifyMessages)
             {
                 const channel = client.channels.find('id', notifyMessage.channelId);
+                
                 if(channel)
                 {
-                    const message = channel.fetchMessage(notifyMessage.id);
+                    channel.fetchMessage(notifyMessage.id).then(message => {
 
-                    if(message)
-                    {
-                        const content = message.content;
-                        message.edit(content.substring(0, content.indexOf('\r\n')).trim() + `\r\nChoix validé par ${user} : ${verified ? ':thumbsup:' : ':beaugoss:'}`);
-                    }
+                        if(message)
+                        {
+                            const content = message.content;
+    
+                            if(content)
+                            {
+                                message.edit(content.substring(0, content.indexOf('\r\n')).trim() + `\r\nChoix validé par ${user}`);
+                            }
+
+                            const onDone = () => {
+                                if(verified)
+                                {
+                                    message.react(emojiUp);
+                                    message.react('🐰');
+                                    message.react('♥');
+                                }
+                                else
+                                {
+                                    message.react(emojiDown);
+                                    message.react('😢');
+                                }
+                            };
+    
+                            const reactions = message.reactions.filter(r => r.me).array();
+                            let index = 0;
+
+                            const exec = () => {
+                                if(index === reactions.length)
+                                    return onDone();
+                                
+                                reactions[index++].remove().then(exec);
+                            };
+
+                            exec();
+                        }
+                    })
                 }
 
                 delete notifPendings[notifyMessage.id];
@@ -194,4 +227,4 @@ client.on('ready', () => {
     console.log('READY');
 });
 
-client.login(process.env.TOKEN || fs.readFile('./token').toString().trim());
+client.login(process.env.TOKEN || fs.readFileSync('./token').toString().trim());
