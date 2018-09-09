@@ -8,7 +8,11 @@ const adjectives = [
     'étrange',
     'bizarre',
     'chelou',
-    'peu compétent'
+    'peu compétent',
+    'avec le grade primed nooby',
+    'ressemblant à Hardmox',
+    'qui a besoin de troll',
+    'ressemblant à wasabite'
 ];
 
 let pendings = {};
