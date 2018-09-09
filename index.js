@@ -34,7 +34,7 @@ client.on('guildMemberAdd', (member) => {
     emojiDown = member.guild.emojis.find('name', 'beaugoss');
 
     const usersToAsk = member.guild.members
-        .filter(m => m.roles.some(r => r.name === 'recrutement'))
+        .filter(m => m.roles.some(r => r.name.toLowerCase() === 'recrutement'))
         .map(m => m.user)
         //.filter(u => u.username.indexOf('Akamelia') === 0 || u.username.indexOf('general_shark') !== -1)
 
@@ -57,6 +57,7 @@ client.on('guildMemberAdd', (member) => {
 
     for(const userToAsk of usersToAsk)
     {
+        console.log(userToAsk.username);
         userToAsk.createDM().then(sendToChannel);
     }
 
