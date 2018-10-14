@@ -1,4 +1,5 @@
 const Discord = require('discord.js');
+const moment = require('moment');
 const fs = require('fs');
 
 const client = new Discord.Client();
@@ -8,11 +9,7 @@ const adjectives = [
     'étrange',
     'bizarre',
     'chelou',
-    'peu compétent',
-    'avec le grade primed nooby',
-    'ressemblant à Hardmox',
-    'qui a besoin de troll',
-    'ressemblant à wasabite'
+    'peu compétent'
 ];
 
 let pendings = {};
@@ -22,6 +19,9 @@ let emojiUp;
 let emojiDown;
 
 client.on('guildMemberAdd', (member) => {
+    if(isDevelopping)
+        return;
+    
     const user = member.user;
 
     const pending = {
@@ -43,7 +43,8 @@ client.on('guildMemberAdd', (member) => {
         //.filter(u => u.username.indexOf('Akamelia') === 0 || u.username.indexOf('general_shark') !== -1)
 
     const adjective = adjectives[Math.trunc(Math.random() * adjectives.length)];
-    const msg = `Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}**\r\nQuels sont vos ordres ?\r\n(Choisir une des deux réactions)`;
+    const msg = `Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}** [${member.displayName}]\r\nQuels sont vos ordres ?\r\n(Choisir une des deux réactions)`;
+    const msgChannel = `Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}**\r\nQuels sont vos ordres ?\r\n(Choisir une des deux réactions)`;
     
     const sendToMessage = (channel, m) => {
         pending.notifyMessages.push({
@@ -67,48 +68,150 @@ client.on('guildMemberAdd', (member) => {
 
     const channel = member.guild.channels.find('name', 'vérification-tenno');
     if(channel)
-        channel.send(msg).then(m => sendToMessage(channel, m));
+        channel.send(msgChannel).then(m => sendToMessage(channel, m));
     
     pendings[pending.id] = pending;
 });
+
+function findAllMessages(channel, callback, beforeMessageId)
+{
+    channel.fetchMessages({
+        limit: 100,
+        before: beforeMessageId
+    }).then(messages => {
+        messages = [...messages.values()];
+        if(messages.length === 0)
+        {
+            if(!beforeMessageId)
+                callback(messages);
+            else
+                callback([ messages ]);
+        }
+        else
+        {
+            const lastMessage = messages[messages.length - 1];
+            findAllMessages(channel, (prevMessages) => {
+                prevMessages.push(messages);
+    
+                let result = prevMessages.shift();
+                result = result.concat(...prevMessages);
+                callback(result);
+            }, lastMessage.id);
+        }
+    });
+}
+
+function getAllUsersWithoutSignature(channel, includePreBotUsers, callback)
+{
+    const preBotDate = 1536525097555;
+
+    findAllMessages(channel, (messages) => {
+        const response = channel.guild.members
+            .filter(m => !m.user.bot)
+            .filter(m => !messages.some(msg => msg.author.id === m.user.id))
+            .filter(m => includePreBotUsers || preBotDate - m.joinedTimestamp > 0)
+            .map(m => {
+                const memberCreationDate = moment(m.joinedTimestamp);
+                const memberTimeCreationToNowSec = Math.trunc((Date.now() - m.joinedTimestamp) / 1000);
+
+                const sec = memberTimeCreationToNowSec;
+                const min = (memberTimeCreationToNowSec - sec) % 60;
+                const h = ((memberTimeCreationToNowSec - sec) / 60) % 60;
+
+                return {
+                    user: m.user,
+                    createDate: m.joinedTimestamp,
+                    timeUntilNow: Date.now() - m.joinedTimestamp,
+                    isPreBot: preBotDate - m.joinedTimestamp > 0
+                };
+            });
+
+        callback(response);
+    });
+}
 
 client.on('message', (message) => {
     if(message.author.id === client.user.id)
         return;
     
-    if(message.content && /^\s*!verifyeveryone\s*$/img.test(message.content))
+    if(isDevelopping)
     {
-        if(message.member.roles.some(r => r.name === 'Modérateur Orokin'))
+        if(message.content && /^\s*!testtimes\s*$/img.test(message.content))
         {
-            const role = message.member.guild.roles.find('name', 'verified');
+            const charteChannel = message.guild.channels.find('name', 'signature-de-la-charte');
 
-            let nb = 0;
-            for(member of message.guild.members.array())
-            {
-                member.addRole(role);
-                ++nb;
-            }
+            getAllUsersWithoutSignature(charteChannel, true, (info) => {
+                const maxNameSize = info.map(i => i.user.username.length).reduce((p, c) => p > c ? p : c);
 
-            if(nb === 0)
-                message.reply(`J'ai ajouté le rôle à aucun membre.`);
-            else
-                message.reply(`J'ai ajouté le rôle à ${nb} membre${nb > 1 ? 's' : ''}.`);
-        }
-        else
-        {
-            message.reply(`Tu n'as pas le droit de faire ça! :rage: `);
+                const response = info.map((uInfo) => {
+                    const pad = (value, nb, char, before) => {
+                        value = value.toString();
+                        char = char || '0';
+                        nb = nb || 2;
+                        if(before === undefined)
+                            before = true;
+
+                        while(value.length < nb)
+                        {
+                            if(before)
+                                value = char + value;
+                            else
+                                value = value + char;
+                        }
+                        return value;
+                    }
+
+                    const createDate = moment(uInfo.createDate);
+                    const timeUntilNow = pad(Math.trunc(uInfo.timeUntilNow / (1000 * 60 * 60 * 25))) + ' jour(s) ' + pad(Math.trunc(uInfo.timeUntilNow / (1000 * 60 * 60) % 25)) + ':' + pad(Math.trunc(uInfo.timeUntilNow / (1000 * 60) % 60)) + ':' + pad(Math.trunc(uInfo.timeUntilNow / 1000 % 60));
+
+                    return `\`${pad(uInfo.user.username, maxNameSize, ' ', false)} ${createDate.format('DD/MM/YYYY HH:mm:ss')} - ${timeUntilNow} passé sans valider la charte\`${uInfo.timeUntilNow >= 2 * 24 * 60 * 60 * 1000 ? ' :snail:' : ''}${uInfo.isPreBot ? ' :shark:' : ''}`;
+                });
+                
+                message.channel.send(response, {
+                    split: true
+                });
+            })
         }
     }
     else
     {
-        if(message.channel.type === 'dm')
+        if(message.content && /^\s*!verifyeveryone\s*$/img.test(message.content))
         {
-            message.reply('😡');
+            if(message.member.roles.some(r => r.name === 'Modérateur Orokin'))
+            {
+                const role = message.member.guild.roles.find('name', 'verified');
+
+                let nb = 0;
+                for(member of message.guild.members.array())
+                {
+                    member.addRole(role);
+                    ++nb;
+                }
+
+                if(nb === 0)
+                    message.reply(`J'ai ajouté le rôle à aucun membre.`);
+                else
+                    message.reply(`J'ai ajouté le rôle à ${nb} membre${nb > 1 ? 's' : ''}.`);
+            }
+            else
+            {
+                message.reply(`Tu n'as pas le droit de faire ça! :rage: `);
+            }
+        }
+        else
+        {
+            if(message.channel.type === 'dm')
+            {
+                message.reply('😡');
+            }
         }
     }
 });
 
 client.on('messageReactionAdd', (msgReact, user) => {
+    if(isDevelopping)
+        return;
+    
     if(user.id === client.user.id)
         return;
 
@@ -230,6 +333,19 @@ client.on('messageReactionAdd', (msgReact, user) => {
 
 client.on('ready', () => {
     console.log('READY');
+
+    /*
+    setInterval(() => {
+
+    }, 1000 * 60 * 60);*/
 });
+
+const isDebug = !process.env.TOKEN;
+let isDevelopping = false;
+
+
+isDevelopping = isDebug && isDevelopping;
+console.log('DEBUG =', isDebug ? 'ON' : 'OFF');
+console.log('DEV MODE =', isDevelopping ? 'ON' : 'OFF');
 
 client.login(process.env.TOKEN || fs.readFileSync('./token').toString().trim());
