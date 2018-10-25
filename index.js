@@ -18,6 +18,40 @@ let notifPendings = {};
 let emojiUp;
 let emojiDown;
 
+var getPeriod = function() {
+    var now = new Date(Date.now());
+    var month = now.getMonth() + 1;
+    var day = now.getDate();
+
+    return {
+        halloween: month === 10 && day > 20 || month === 11 && day < 2,
+        christmas: month === 11 && day > 25 || month === 12 && day < 28,
+        newYear: month === 12 && day >= 28 || month === 1 && day < 3
+    };
+}
+const globals = {
+    iconBefore: function() {
+        var period = getPeriod();
+        
+        var icon = undefined;
+        if(period.halloween) icon = ':jack_o_lantern:'
+        if(period.christmas) icon = ':christmas_tree:'
+        if(period.newYear) icon = ':confetti_ball:'
+
+        return icon ? `${icon} ` : '';
+    },
+    iconAfter: function() {
+        var period = getPeriod();
+        
+        var icon = undefined;
+        if(period.halloween) icon = ':jack_o_lantern:'
+        if(period.christmas) icon = ':christmas_tree:'
+        if(period.newYear) icon = ':tada:'
+
+        return icon ? ` ${icon}` : '';
+    }
+};
+
 client.on('guildMemberAdd', (member) => {
     if(isDevelopping)
         return;
@@ -43,8 +77,8 @@ client.on('guildMemberAdd', (member) => {
         //.filter(u => u.username.indexOf('Akamelia') === 0 || u.username.indexOf('general_shark') !== -1)
 
     const adjective = adjectives[Math.trunc(Math.random() * adjectives.length)];
-    const msg = `Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}** [${member.displayName}]\r\nQuels sont vos ordres ?\r\n(Choisir une des deux réactions)`;
-    const msgChannel = `Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}**\r\nQuels sont vos ordres ?\r\n(Choisir une des deux réactions)`;
+    const msg = `${globals.iconBefore()}Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}** [${member.displayName}]${globals.iconAfter()}\r\nQuels sont vos ordres ?\r\n(Choisir une des deux réactions)`;
+    const msgChannel = `${globals.iconBefore()}Mes scanners viennent de détecter un individu *${adjective}* sur **${member.guild.name}** : **${member}**${globals.iconAfter()}\r\nQuels sont vos ordres ?\r\n(Choisir une des deux réactions)`;
     
     const sendToMessage = (channel, m) => {
         pending.notifyMessages.push({
