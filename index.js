@@ -5,10 +5,18 @@ const fs = require('fs');
 const client = new Discord.Client();
 
 const adjectives = [
-    'suspect',
+    '*ressemblant à wasabite*',
+    'équivalent à un primed nooby',
     'étrange',
-    'bizarre',
+    'comparable à un Baptiste pas net',
+    'qui peut être une nouvelle recrue sharkplatine',
     'chelou',
+    ',surement un futur AFK',
+    'ressemblant à une Divine sauvage',
+    'suspect',
+    ',blood recrute peut être enfin...',
+    'bizarre',
+    'maître samouraï (palier 2)',
     'peu compétent'
 ];
 
